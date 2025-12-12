@@ -2,6 +2,8 @@
 use crate::net::packet::{AWPacket, DeserializeError, PacketType};
 use crate::ReasonCode;
 use crate::{AWCryptStream, StreamKeyError};
+use log::Level;
+use std::cmp::min;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -113,6 +115,8 @@ impl AWProtocol {
             bytes_to_send = self.send_cipher.encrypt(&bytes_to_send);
         }
 
+        Self::log_bytes(Level::Trace, "tcp send", &bytes_to_send);
+
         // Send the serialized packet.
         self.stream
             .write_all(&bytes_to_send)
@@ -129,6 +133,7 @@ impl AWProtocol {
             if let Some(cipher) = &mut self.recv_cipher {
                 cipher.decrypt_in_place(&mut buf[..bytes_read]);
             }
+            Self::log_bytes(Level::Trace, "tcp recv", &buf[..bytes_read]);
             self.data.extend(&buf[..bytes_read]);
 
             if bytes_read == 0 {
@@ -138,6 +143,31 @@ impl AWProtocol {
             }
         } else {
             Err("Could not receive bytes.".to_string())
+        }
+    }
+
+    fn log_bytes(level: Level, direction: &str, bytes: &[u8]) {
+        if !log::log_enabled!(level) {
+            return;
+        }
+
+        const MAX_DISPLAY: usize = 512;
+        let shown = min(bytes.len(), MAX_DISPLAY);
+        let bytes_str = bytes
+            .iter()
+            .take(shown)
+            .map(|b| format!("{b:02X}"))
+            .collect::<Vec<String>>()
+            .join(" ");
+
+        if bytes.len() > MAX_DISPLAY {
+            log::log!(
+                level,
+                "{direction}: {bytes_str} ... ({} bytes total)",
+                bytes.len()
+            );
+        } else {
+            log::log!(level, "{direction}: {bytes_str}");
         }
     }
 
