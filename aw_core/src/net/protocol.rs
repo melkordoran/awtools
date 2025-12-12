@@ -160,14 +160,14 @@ impl AWProtocol {
             .collect::<Vec<String>>()
             .join(" ");
 
-        let total = bytes.len();
-        if total > MAX_DISPLAY {
+        if bytes.len() > MAX_DISPLAY {
             log::log!(
                 level,
-                "{direction}: showing {shown}/{total} bytes: {bytes_str} ..."
+                "{direction}: {bytes_str} ... ({} bytes total)",
+                bytes.len()
             );
         } else {
-            log::log!(level, "{direction}: len={total} bytes: {bytes_str}");
+            log::log!(level, "{direction}: {bytes_str}");
         }
     }
 
